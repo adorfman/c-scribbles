@@ -7,6 +7,8 @@
 
 #define OCTET_STR_LEN 4
 
+#define IPV4_STR_LITERAL_SIZE 16
+
 uint8_t oct_str_to_num( const char *num_str, uint8_t *const err ) {
 
   uint8_t place = 0;
@@ -188,7 +190,7 @@ unsigned int ipv4_mask_cidr( const Ipv4Addr *const mask ) {
 }
 
 
-void print_ipv4( const Ipv4Addr * const ip ) {
+void print_ipv4( const Ipv4Addr *const ip ) {
 
   printf("%" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8,
          ip->octets[0], ip->octets[1], ip->octets[2], ip->octets[3] );
@@ -251,7 +253,7 @@ void print_ip_data( const char *ip_addr, const char *netmask ) {
      return;
   }
 
-  char addr_buffer[16];
+  char addr_buffer[IPV4_STR_LITERAL_SIZE];
   format_ipv4(addr_buffer, &ip);
 
   Ipv4Addr ip_mask;
@@ -263,7 +265,7 @@ void print_ip_data( const char *ip_addr, const char *netmask ) {
      return;
   }
 
-  char mask_buffer[16];
+  char mask_buffer[IPV4_STR_LITERAL_SIZE];
   format_ipv4(mask_buffer, &ip_mask);
 
 
@@ -272,25 +274,25 @@ void print_ip_data( const char *ip_addr, const char *netmask ) {
 
   Ipv4Addr *network_addr = get_network_addr( &ip, &ip_mask );
 
-  char net_buffer[16];
+  char net_buffer[IPV4_STR_LITERAL_SIZE];
   format_ipv4(net_buffer, network_addr);
 
 
   Ipv4Addr *broadcast_addr = get_broadcast_addr( &ip, &ip_mask );
 
-  char bcast_buffer[16];
+  char bcast_buffer[IPV4_STR_LITERAL_SIZE];
   format_ipv4(bcast_buffer, broadcast_addr);
 
 
   Ipv4Addr *low_addr = get_low_addr( network_addr, broadcast_addr );
 
-  char laddr_buffer[16];
+  char laddr_buffer[IPV4_STR_LITERAL_SIZE];
   format_ipv4(laddr_buffer, low_addr);
 
 
   Ipv4Addr *high_addr = get_high_addr( network_addr, broadcast_addr );
 
-  char haddr_buffer[16];
+  char haddr_buffer[IPV4_STR_LITERAL_SIZE];
   format_ipv4(haddr_buffer, high_addr);
 
 
