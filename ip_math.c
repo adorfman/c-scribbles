@@ -2,15 +2,21 @@
 #include <math.h>
 #include <inttypes.h>
 
+#define OCTET_LEN 3
 
-uint8_t str_to_num( char * num_str ) {
+#define OCTET_STR_LEN 4
 
-  uint8_t num_list[3] = {};
+uint8_t oct_str_to_num( char * num_str ) {
+
+  uint8_t num_list[OCTET_LEN] = {};
   uint8_t place       = 0;
 
   while ( *num_str != '\0' ) {
     num_list[place++] = *num_str;
     num_str++;
+
+    if (place > OCTET_LEN - 1)
+      break;
   }
 
   uint8_t num = 0;
@@ -31,74 +37,72 @@ typedef union {
 } Ipv4Addr;
 
 
-int str_to_ipv4addr( const char * ip_string, Ipv4Addr * ipv4 ) {
+int str_to_ipv4addr( const char * ip_string_ptr, Ipv4Addr * ipv4 ) {
 
-  /* Initializing with all null
-   * bytes for cheap insurance
-   * in str_to_num()
-   * */
-  const char * counter = ip_string;
-  const char dot      = '.';
+  const char dot = '.';
 
-  char ip_byte_strs[4][4] = {"\0\0\0\0","\0\0\0\0","\0\0\0\0","\0\0\0\0" };
+  char ip_byte_strs[OCTET_STR_LEN][OCTET_STR_LEN] = {};
   /* Who needs to manage multi-dimensional array
    * indexes ?
    *
    * NOT MY COMPILER
    * */
-  char * dest = (void*)ip_byte_strs;
+  char * ip_byte_strs_ptr = (char*)ip_byte_strs;
   unsigned int  pos = 0;
   unsigned int  seen_dot = 0;
-  while (*counter != '\0' ) {
+
+  while (*ip_string_ptr != '\0' ) {
 
     if ( pos > 31 ) {
         return -1;
     }
 
     /* some string validation, as a treat */
-    if ( (int)(pos - ( seen_dot * 4 )) > 3 ) {
+    if ( (int)(pos - ( seen_dot * OCTET_STR_LEN )) > OCTET_LEN ) {
         return -1;
     }
 
-    *dest = *counter;
+    *ip_byte_strs_ptr = *ip_string_ptr;
 
     pos++;
-    dest++;
-    counter++;
+    ip_byte_strs_ptr++;
+    ip_string_ptr++;
 
-    if ( *counter == dot ) {
+    if ( *ip_string_ptr == dot ) {
       seen_dot++;
-      counter++;
-      printf("dot: %i\n", pos);
-      dest += 1 + ( pos % 3 );
+      ip_string_ptr++;
+      /* align ip_byte_strs_ptr pointer to the start
+       * of the next row ip_byte_strs
+       */
+      ip_byte_strs_ptr += 1 + ( pos % OCTET_LEN );
     }
   }
 
   /*
   unsigned int  oct = 0;
   unsigned int  pos = 0;
-  while (*counter != '\0' ) {
+  while (*ip_string_ptr != '\0' ) {
 
     if ( pos > 2 || oct > 3 ) {
         return -1;
     }
 
-    ip_byte_strs[oct][pos] = *counter;
+    ip_byte_strs[oct][pos] = *ip_string_ptr;
     pos++;
-    counter++;
+    ip_string_ptr++;
 
-    if ( *counter == dot ) {
-      counter++;
+    if ( *ip_string_ptr == dot ) {
+      ip_string_ptr++;
       pos = 0;
       oct++;
     }
   }
   */
 
-  ipv4->octets[0] = str_to_num(ip_byte_strs[0]);
-  ipv4->octets[1] = str_to_num(ip_byte_strs[1]);
-  ipv4->octets[2] = str_to_num(ip_byte_strs[2]);
-  ipv4->octets[3] = str_to_num(ip_byte_strs[3]);
+  ipv4->octets[0] = oct_str_to_num(ip_byte_strs[0]);
+  ipv4->octets[1] = oct_str_to_num(ip_byte_strs[1]);
+  ipv4->octets[2] = oct_str_to_num(ip_byte_strs[2]);
+  ipv4->octets[3] = oct_str_to_num(ip_byte_strs[3]);
 
   return 0;
 }
@@ -135,18 +139,24 @@ int ipv4_mask_cidr( Ipv4Addr * mask ) {
 
 unsigned int ipv4_mask_cidr( Ipv4Addr * mask ) {
 
-   unsigned int cidr= 0;
+   unsigned int cidr = 0;
 
    for (int i = 0; i <= 3; i++) {
 
-       unsigned int octet = mask->octets[i];
-       unsigned int count = 0;
-       unsigned int bit   = 1;
+       uint8_t octet = mask->octets[i];
+       uint8_t bit   = 1;
+       uint8_t count = 0;
 
        while (bit == 1) {
           if (count == 8)
             break;
 
+          /*
+            Clearing the higher order bits here
+            shouldn't be necessary with octet
+            being a uint8_t, but better safe than
+            sorry?
+          */
           bit = (octet & 0x80) >> 7;
 
           if (bit == 0)
