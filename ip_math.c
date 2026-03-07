@@ -1,6 +1,7 @@
 #include <stdio.h>
-#include <math.h>
+//#include <math.h>
 #include <inttypes.h>
+#include <stdlib.h>
 
 #define OCTET_LEN 3
 
@@ -22,9 +23,10 @@ uint8_t oct_str_to_num( char * num_str ) {
   uint8_t num = 0;
 
   for ( int i=0; i < place; i++ ) {
-      uint8_t char_int = ( (uint8_t)(num_list[i]) - '0' );
+    uint8_t char_int = ( (uint8_t)(num_list[i]) - '0' );
 
-      num = num + ( char_int * (uint8_t)pow(10.0, place - i - 1) );
+    // num = num + ( char_int * (uint8_t)pow(10.0, place - i - 1) );
+    num = num * 10 + char_int;
   }
 
   return num;
@@ -48,8 +50,8 @@ int str_to_ipv4addr( const char * ip_string_ptr, Ipv4Addr * ipv4 ) {
    * NOT MY COMPILER
    * */
   char * ip_byte_strs_ptr = (char*)ip_byte_strs;
-  unsigned int  pos = 0;
-  unsigned int  seen_dot = 0;
+  unsigned int pos = 0;
+  unsigned int seen_dot = 0;
 
   while (*ip_string_ptr != '\0' ) {
 
@@ -57,7 +59,7 @@ int str_to_ipv4addr( const char * ip_string_ptr, Ipv4Addr * ipv4 ) {
         return -1;
     }
 
-    /* some string validation, as a treat */
+    /* some input validation, as a treat */
     if ( (int)(pos - ( seen_dot * OCTET_STR_LEN )) > OCTET_LEN ) {
         return -1;
     }
@@ -179,6 +181,35 @@ void print_ipv4( Ipv4Addr ip ) {
           ip.octets[0], ip.octets[1], ip.octets[2], ip.octets[3] );
 }
 
+Ipv4Addr * get_network_addr( Ipv4Addr *addr, Ipv4Addr *mask ) {
+
+      const int ip_addr = addr->address;
+      const int ip_mask = mask->address;
+
+      const int network_addr = ip_addr & ip_mask;
+
+      Ipv4Addr* network_addr_ptr = malloc(sizeof(Ipv4Addr));
+
+      network_addr_ptr->address = network_addr;
+
+      return network_addr_ptr;
+}
+
+Ipv4Addr * get_broadcast_addr( Ipv4Addr *addr, Ipv4Addr *mask ) {
+
+      const int ip_addr       = addr->address;
+      const int wildcard_mask = ~(mask->address);
+
+      const int broadcast_addr = ip_addr | wildcard_mask;
+
+      Ipv4Addr* broadcast_addr_ptr = malloc(sizeof(Ipv4Addr));
+
+      broadcast_addr_ptr->address = broadcast_addr;
+
+      return broadcast_addr_ptr;
+}
+
+
 
 int main() {
 
@@ -229,6 +260,38 @@ int main() {
   printf("Short Mask: ");
   print_ipv4(ip_short_mask);
   printf("\n");
+
+  Ipv4Addr* network_addr = get_network_addr( &ip2, &ip_mask );
+
+  printf("Network Addr: ");
+  print_ipv4(*network_addr);
+  printf("\n");
+
+  Ipv4Addr* broadcast_addr = get_broadcast_addr( &ip2, &ip_mask );
+
+  printf("Broadcast Addr: ");
+  print_ipv4(*broadcast_addr);
+  printf("\n");
+
+  Ipv4Addr low_addr;
+
+  low_addr.address = ( network_addr->address + (1<<24));
+
+  printf("Lowest Addr: ");
+  print_ipv4(low_addr);
+  printf("\n");
+
+  Ipv4Addr high_addr;
+
+  high_addr.address = ( broadcast_addr->address - (1<<24));
+
+  printf("Highest Addr: ");
+  print_ipv4(high_addr);
+  printf("\n");
+
+
+  free(network_addr);
+  free(broadcast_addr);
 
   return 0;
 }
