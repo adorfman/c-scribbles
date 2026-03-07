@@ -15,7 +15,6 @@ uint8_t oct_str_to_num( const char *num_str, uint8_t *const err ) {
   while ( *num_str != '\0' ) {
 
     if (++place > OCTET_LEN) {
-      printf("OOPS\n");
       *err |= 1;
       return 0;
     }
