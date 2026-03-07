@@ -2,28 +2,6 @@
 #include <math.h>
 #include <inttypes.h>
 
-void str_to_byte_strings( char * ip_string, char ret[4][4] ) {
-
-  char dot = '.';
-
-  int  pos    = 0;
-  int  ip_pos = 0;
-  char *counter = ip_string;
-
-  while (*counter != '\0') {
-
-    ret[ip_pos][pos] = *counter;
-    pos++;
-    counter++;
-
-    if (*counter == dot ) {
-        counter++;
-        pos = 0;
-        ip_pos++;
-    }
-  }
-
-}
 
 uint8_t str_to_num( char * num_str ) {
 
@@ -53,15 +31,52 @@ typedef union {
 } Ipv4Addr;
 
 
-int str_to_ipv4addr( char * ip_string, Ipv4Addr * ipv4 ) {
+int str_to_ipv4addr( const char * ip_string, Ipv4Addr * ipv4 ) {
 
-  unsigned int  pos = 0;
-  unsigned int  oct = 0;
+  /* Initializing with all null
+   * bytes for cheap insurance
+   * in str_to_num()
+   * */
+  const char * counter = ip_string;
+  const char dot      = '.';
 
   char ip_byte_strs[4][4] = {"\0\0\0\0","\0\0\0\0","\0\0\0\0","\0\0\0\0" };
-  char dot      = '.';
-  char *counter = ip_string;
+  /* Who needs to manage multi-dimensional array
+   * indexes ?
+   *
+   * NOT MY COMPILER
+   * */
+  char * dest = (void*)ip_byte_strs;
+  unsigned int  pos = 0;
+  unsigned int  seen_dot = 0;
+  while (*counter != '\0' ) {
 
+    if ( pos > 31 ) {
+        return -1;
+    }
+
+    /* some string validation, as a treat */
+    if ( (int)(pos - ( seen_dot * 4 )) > 3 ) {
+        return -1;
+    }
+
+    *dest = *counter;
+
+    pos++;
+    dest++;
+    counter++;
+
+    if ( *counter == dot ) {
+      seen_dot++;
+      counter++;
+      printf("dot: %i\n", pos);
+      dest += 1 + ( pos % 3 );
+    }
+  }
+
+  /*
+  unsigned int  oct = 0;
+  unsigned int  pos = 0;
   while (*counter != '\0' ) {
 
     if ( pos > 2 || oct > 3 ) {
@@ -78,6 +93,7 @@ int str_to_ipv4addr( char * ip_string, Ipv4Addr * ipv4 ) {
       oct++;
     }
   }
+  */
 
   ipv4->octets[0] = str_to_num(ip_byte_strs[0]);
   ipv4->octets[1] = str_to_num(ip_byte_strs[1]);
@@ -86,6 +102,7 @@ int str_to_ipv4addr( char * ip_string, Ipv4Addr * ipv4 ) {
 
   return 0;
 }
+
 
 /* Converts to MSB 32 uint
 int ipv4_mask_cidr( Ipv4Addr * mask ) {
@@ -115,15 +132,16 @@ int ipv4_mask_cidr( Ipv4Addr * mask ) {
 }
 */
 
+
 unsigned int ipv4_mask_cidr( Ipv4Addr * mask ) {
 
    unsigned int cidr= 0;
 
    for (int i = 0; i <= 3; i++) {
-       unsigned int octet = mask->octets[i];
 
+       unsigned int octet = mask->octets[i];
        unsigned int count = 0;
-       unsigned int bit = 1;
+       unsigned int bit   = 1;
 
        while (bit == 1) {
           if (count == 8)
@@ -144,35 +162,37 @@ unsigned int ipv4_mask_cidr( Ipv4Addr * mask ) {
    return cidr;
 }
 
+
+void print_ipv4( Ipv4Addr ip ) {
+
+   printf("%" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8,
+          ip.octets[0], ip.octets[1], ip.octets[2], ip.octets[3] );
+}
+
+
 int main() {
 
-  char * addr = "192.168.10.5";
-  char * mask = "255.255.248.0";
-
-  char ip_bytes[4][4] = { "\0\0\0\0","\0\0\0\0","\0\0\0\0","\0\0\0\0" };
-
-  str_to_byte_strings(addr, ip_bytes);
-
-  Ipv4Addr ip;
-
-  ip.octets[0] = str_to_num(ip_bytes[0]);
-
-  printf("int: %hhu\n", ip.octets[0] );
-
+  const char * addr = "192.168.10.5";
+  const char * mask = "255.255.248.0";
 
   Ipv4Addr ip2;
 
   int status = str_to_ipv4addr(addr, &ip2);
 
-  printf("IP: %" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8 "\n",
-          ip2.octets[0], ip2.octets[1], ip2.octets[2], ip2.octets[3] );
+  printf("status: %i\n", status);
+  printf("IP: ");
+  print_ipv4(ip2);
+  printf("\n");
 
   Ipv4Addr ip_mask;
 
   status = str_to_ipv4addr(mask, &ip_mask);
 
-  printf("Mask: %" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8 "\n",
-          ip_mask.octets[0], ip_mask.octets[1], ip_mask.octets[2], ip_mask.octets[3] );
+  printf("status: %i\n", status);
+  printf("Mask: ");
+  print_ipv4(ip_mask);
+  printf("\n");
+
 
   int cidr = ipv4_mask_cidr(&ip_mask);
 
@@ -180,22 +200,25 @@ int main() {
 
   Ipv4Addr ip_fail;
 
-  char bad_attr[] = {'H', 'e', 'l', 'l', 'o'};
-  status = str_to_ipv4addr(bad_attr, &ip_fail);
+  const char bad_addr[] = {'H', 'e', 'l', 'l', 'o'};
+  status = str_to_ipv4addr(bad_addr, &ip_fail);
 
   printf("status: %i\n", status);
-  printf("Mask: %" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8 "\n",
-          ip_fail.octets[0], ip_fail.octets[1], ip_fail.octets[2], ip_fail.octets[3] );
+  printf("Bad: ");
+  print_ipv4(ip_fail);
+  printf("\n");
 
-  char * short_mask = "255.248";
+
+  const char * short_mask = "255.248";
 
   Ipv4Addr ip_short_mask;
 
   status = str_to_ipv4addr(short_mask, &ip_short_mask);
 
   printf("status: %i\n", status);
-  printf("Mask: %" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8 "\n",
-          ip_short_mask.octets[0], ip_short_mask.octets[1], ip_short_mask.octets[2], ip_short_mask.octets[3] );
+  printf("Short Mask: ");
+  print_ipv4(ip_short_mask);
+  printf("\n");
 
   return 0;
 }
