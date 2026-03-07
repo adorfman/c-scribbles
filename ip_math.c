@@ -2,6 +2,7 @@
 //#include <math.h>
 #include <inttypes.h>
 #include <stdlib.h>
+#include <netinet/in.h>
 
 #define OCTET_LEN 3
 
@@ -40,7 +41,7 @@ uint8_t oct_str_to_num( const char *num_str, uint8_t *const err ) {
 
 
 typedef union {
-  uint32_t address;
+  uint32_t address;   // LSB
   uint8_t  octets[4];
 } Ipv4Addr;
 
@@ -155,6 +156,15 @@ int ipv4_mask_cidr( Ipv4Addr * mask ) {
 }
 */
 
+uint32_t get_net_addr( const Ipv4Addr *const addr ) {
+
+  uint32_t net_order = ( addr->octets[0] << 24) |
+                       ( addr->octets[1] << 16) |
+                       ( addr->octets[2] << 8)  |
+                       addr->octets[3];
+
+  return net_order;
+}
 
 unsigned int ipv4_mask_cidr( const Ipv4Addr *const mask ) {
 
@@ -196,12 +206,14 @@ void print_ipv4( const Ipv4Addr *const ip ) {
          ip->octets[0], ip->octets[1], ip->octets[2], ip->octets[3] );
 }
 
+
 int format_ipv4( char *buffer, const Ipv4Addr *const ip ) {
 
   return sprintf( buffer,
                   "%" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8,
                   ip->octets[0], ip->octets[1], ip->octets[2], ip->octets[3] );
 }
+
 
 Ipv4Addr* get_network_addr( const Ipv4Addr *const addr, const Ipv4Addr *const mask ) {
 
@@ -213,6 +225,7 @@ Ipv4Addr* get_network_addr( const Ipv4Addr *const addr, const Ipv4Addr *const ma
 
   return network_addr_ptr;
 }
+
 
 Ipv4Addr* get_broadcast_addr( const Ipv4Addr *const addr, const Ipv4Addr *const mask ) {
 
@@ -229,18 +242,32 @@ Ipv4Addr* get_broadcast_addr( const Ipv4Addr *const addr, const Ipv4Addr *const 
 Ipv4Addr* get_low_addr( const Ipv4Addr *const addr, const Ipv4Addr *const broadcast_addr ) {
 
   Ipv4Addr *low_addr_ptr = malloc(sizeof(Ipv4Addr));
-  low_addr_ptr->address  = addr->address + (1<<24); // NOT PORTABLE
+
+  if (broadcast_addr->address == addr->address )  // 32 case
+    low_addr_ptr->address = addr->address;
+  else if ( ( get_net_addr(broadcast_addr) - get_net_addr(addr) ) == 1 )  // 31 case
+    low_addr_ptr->address = addr->address;
+  else
+    low_addr_ptr->address = addr->address + (1<<24); // NOT PORTABLE assumes LSB
 
   return low_addr_ptr;
 }
 
+
 Ipv4Addr* get_high_addr( const Ipv4Addr *const addr, const Ipv4Addr *const broadcast_addr ) {
 
   Ipv4Addr *high_addr_ptr = malloc(sizeof(Ipv4Addr));
-  high_addr_ptr->address  = broadcast_addr->address - (1<<24);
+
+  if (broadcast_addr->address == addr->address )
+    high_addr_ptr->address = addr->address;
+  else if ( ( get_net_addr(broadcast_addr) - get_net_addr(addr) ) == 1 )
+    high_addr_ptr->address = broadcast_addr->address;
+  else
+    high_addr_ptr->address = broadcast_addr->address - (1<<24);
 
   return high_addr_ptr;
 }
+
 
 void print_ip_data( const char *ip_addr, const char *netmask ) {
 
@@ -318,6 +345,10 @@ int main() {
   print_ip_data("192.168.10.100","255.255.255.0");
   print_ip_data("192.8.18.5","255.255.248.0");
   print_ip_data("8.555.18.5","255.255.254.0");
+  print_ip_data("8.8.8.8","255.255.255.255");
+  print_ip_data("6.6.6.6","255.255.255.254");
+  print_ip_data("127.0.0.2","255.255.255.252");
+  print_ip_data("0.0.0.0","0.0.0.0");
   print_ip_data("4.4.4.4","WUT_R_U_DOING___AAAAAAAAAAAAAAAAAAHHHH");
 
 
