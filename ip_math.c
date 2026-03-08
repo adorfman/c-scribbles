@@ -1,8 +1,6 @@
 #include <stdio.h>
-//#include <math.h>
 #include <inttypes.h>
 #include <stdlib.h>
-#include <netinet/in.h>
 
 #define OCTET_LEN 3
 
@@ -50,39 +48,39 @@ int str_to_ipv4addr( const char *ip_string_ptr, Ipv4Addr *const ipv4 ) {
 
   const char dot = '.';
 
-  char ip_byte_strs[OCTET_STR_LEN][OCTET_STR_LEN] = {{},{},{},{}};
+  char ip_octet_strs[OCTET_STR_LEN][OCTET_STR_LEN] = {{},{},{},{}};
   /* Who needs to manage multi-dimensional array
    * indexes ?
    *
    * NOT MY COMPILER
    * */
-  char *ip_byte_strs_ptr = (char*)ip_byte_strs;
+  char *ip_octet_strs_ptr = (char*)ip_octet_strs;
   unsigned int pos = 0;
-  unsigned int seen_dot = 0;
+  unsigned int seen_dots = 0;
 
-  while (*ip_string_ptr != '\0' ) {
+  while ( *ip_string_ptr != '\0' ) {
 
     if ( pos > 12 )
       return -1;
 
     /* some input validation, as a treat */
-    if ( (int)(pos - ( seen_dot * OCTET_STR_LEN )) > OCTET_LEN )
+    if ( (pos - ( seen_dots * OCTET_LEN )) > OCTET_LEN )
       return -1;
 
-    *ip_byte_strs_ptr = *ip_string_ptr;
+    *ip_octet_strs_ptr = *ip_string_ptr;
 
     pos++;
-    ip_byte_strs_ptr++;
+    ip_octet_strs_ptr++;
     ip_string_ptr++;
 
     if ( *ip_string_ptr == dot ) {
 
-      seen_dot++;
+      seen_dots++;
       ip_string_ptr++;
-      ip_byte_strs_ptr++;
+      ip_octet_strs_ptr++;
 
-      /* align ip_byte_strs_ptr to the start
-       * of the next row in ip_byte_strs
+      /* align ip_octet_strs_ptr to the start
+       * of the next row in ip_octet_strs
        */
       const int octet_pos_left = pos % OCTET_LEN;
 
@@ -90,71 +88,21 @@ int str_to_ipv4addr( const char *ip_string_ptr, Ipv4Addr *const ipv4 ) {
 
         const int next_row_offset = ( OCTET_LEN - octet_pos_left );
 
-        ip_byte_strs_ptr += next_row_offset;
+        ip_octet_strs_ptr += next_row_offset;
         pos += next_row_offset;
       }
     }
   }
 
-  /*
-  unsigned int  oct = 0;
-  unsigned int  pos = 0;
-  while (*ip_string_ptr != '\0' ) {
-
-    if ( pos > 2 || oct > 3 ) {
-        return -1;
-    }
-
-    ip_byte_strs[oct][pos] = *ip_string_ptr;
-    pos++;
-    ip_string_ptr++;
-
-    if ( *ip_string_ptr == dot ) {
-      ip_string_ptr++;
-      pos = 0;
-      oct++;
-    }
-  }
-  */
-
   uint8_t err = 0;
-  for ( int i = 0; i <= 3; i++) {
-    ipv4->octets[i] = oct_str_to_num(ip_byte_strs[i], &err );
+  for ( int i = 0; i <= 3; i++ ) {
+    ipv4->octets[i] = oct_str_to_num(ip_octet_strs[i], &err );
     if (err)
       return -1;
   }
 
   return 0;
 }
-
-
-/* Converts to MSB 32 uint
-int ipv4_mask_cidr( Ipv4Addr * mask ) {
-
-   unsigned int bit = 1;
-   int cidr  = 0;
-   int count = 0;
-
-   unsigned int msb_order = ( mask->octets[0] << 24) | ( mask->octets[1] << 16) | ( mask->octets[2] << 8) | mask->octets[3];
-
-   printf("addr %u\n", msb_order);
-   while (bit == 1) {
-      if (count == 32)
-        break ;
-
-      bit = (msb_order & 0x80000000) >> 31;
-      printf("bit %u\n", bit);
-      if (bit == 1) {
-         cidr++;
-      }
-
-      msb_order = msb_order << 1;
-      count++;
-   }
-
-   return cidr;
-}
-*/
 
 uint32_t get_net_addr( const Ipv4Addr *const addr ) {
 
@@ -168,15 +116,13 @@ uint32_t get_net_addr( const Ipv4Addr *const addr ) {
 
 unsigned int ipv4_mask_cidr( const Ipv4Addr *const mask ) {
 
-  unsigned int cidr = 0;
+  uint8_t cidr = 0;
 
   for (int i = 0; i <= 3; i++) {
 
     uint8_t octet = mask->octets[i];
-    unsigned int bit   = 1;
-    unsigned int count = 0;
 
-    while (count < 8) {
+    while (1) {
 
       /*
         Clearing the higher order bits here
@@ -184,14 +130,17 @@ unsigned int ipv4_mask_cidr( const Ipv4Addr *const mask ) {
         being a uint8_t, but better safe than
         sorry?
       */
-      bit = (octet & 0x80) >> 7;
+      uint8_t bit = (octet & 0x80) >> 7;
 
       if (bit == 0)
          return cidr;
 
       cidr++;
-      count++;
       octet <<= 1;
+
+      if ( cidr % 8 == 0 )
+        break;
+
     }
 
   }
@@ -243,9 +192,9 @@ Ipv4Addr* get_low_addr( const Ipv4Addr *const addr, const Ipv4Addr *const broadc
 
   Ipv4Addr *low_addr_ptr = malloc(sizeof(Ipv4Addr));
 
-  if (broadcast_addr->address == addr->address )  // 32 case
+  if (broadcast_addr->address == addr->address )  // /32 case
     low_addr_ptr->address = addr->address;
-  else if ( ( get_net_addr(broadcast_addr) - get_net_addr(addr) ) == 1 )  // 31 case
+  else if ( ( get_net_addr(broadcast_addr) - get_net_addr(addr) ) == 1 )  // /31 case
     low_addr_ptr->address = addr->address;
   else
     low_addr_ptr->address = addr->address + (1<<24); // NOT PORTABLE assumes LSB
@@ -269,7 +218,7 @@ Ipv4Addr* get_high_addr( const Ipv4Addr *const addr, const Ipv4Addr *const broad
 }
 
 
-void print_ip_data( const char *ip_addr, const char *netmask ) {
+void print_ip_data( const char *const ip_addr, const char *const netmask ) {
 
   Ipv4Addr ip;
 
@@ -350,17 +299,8 @@ int main() {
   print_ip_data("127.0.0.2","255.255.255.252");
   print_ip_data("0.0.0.0","0.0.0.0");
   print_ip_data("4.4.4.4","WUT_R_U_DOING___AAAAAAAAAAAAAAAAAAHHHH");
-
-
-  const char * short_mask = "255.248";
-
-  Ipv4Addr ip_short_mask;
-
-  int status = str_to_ipv4addr(short_mask, &ip_short_mask);
-
-  printf("\nShort Mask: ");
-  print_ipv4(&ip_short_mask);
-  printf("\n");
+  print_ip_data("10.10.6.12","255.248");
+  print_ip_data("10.155555.6.12","255.255.255.128");
 
   return 0;
 }
