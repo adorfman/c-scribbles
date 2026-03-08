@@ -106,9 +106,9 @@ int str_to_ipv4addr( const char *ip_string_ptr, Ipv4Addr *const ipv4 ) {
 
 uint32_t get_net_addr( const Ipv4Addr *const addr ) {
 
-  uint32_t net_order = ( addr->octets[0] << 24) |
-                       ( addr->octets[1] << 16) |
-                       ( addr->octets[2] << 8)  |
+  uint32_t net_order = addr->octets[0] << 24 |
+                       addr->octets[1] << 16 |
+                       addr->octets[2] << 8  |
                        addr->octets[3];
 
   return net_order;
@@ -140,9 +140,7 @@ unsigned int ipv4_mask_cidr( const Ipv4Addr *const mask ) {
 
       if ( cidr % 8 == 0 )
         break;
-
     }
-
   }
 
   return cidr;
@@ -218,7 +216,7 @@ Ipv4Addr* get_high_addr( const Ipv4Addr *const addr, const Ipv4Addr *const broad
 }
 
 
-void print_ip_data( const char *const ip_addr, const char *const netmask ) {
+int print_ip_data( const char *const ip_addr, const char *const netmask ) {
 
   Ipv4Addr ip;
 
@@ -226,7 +224,7 @@ void print_ip_data( const char *const ip_addr, const char *const netmask ) {
 
   if (status) {
      printf("\nError parsing [%s] status: %i\n", ip_addr, status);
-     return;
+     return -1;
   }
 
   char addr_buffer[IPV4_STR_LITERAL_SIZE];
@@ -238,7 +236,7 @@ void print_ip_data( const char *const ip_addr, const char *const netmask ) {
 
   if (status) {
      printf("\nError parsing [%s] status: %i\n", netmask, status);
-     return;
+     return -1;
   }
 
   char mask_buffer[IPV4_STR_LITERAL_SIZE];
@@ -286,6 +284,7 @@ void print_ip_data( const char *const ip_addr, const char *const netmask ) {
   free(low_addr);
   free(high_addr);
 
+  return 0;
 }
 
 
