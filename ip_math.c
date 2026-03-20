@@ -2,6 +2,8 @@
 #include <inttypes.h>
 #include <stdlib.h>
 
+#define OCTETS 4
+
 #define OCTET_LEN 3
 
 #define OCTET_STR_LEN 4
@@ -48,13 +50,13 @@ typedef union {
 
 int str_to_ipv4addr( const char *ip_string_ptr, Ipv4Addr *const ipv4 ) {
 
-  char ip_octet_strs[OCTET_STR_LEN][OCTET_STR_LEN] = {{},{},{},{}};
+  char ip_octet_strs[OCTETS][OCTET_STR_LEN] = {{},{},{},{}};
   /* Who needs to manage multi-dimensional array
    * indexes ?
    *
    * NOT MY COMPILER
    */
-  char *ip_octet_strs_ptr = (char*)ip_octet_strs;
+  char* ip_octet_strs_ptr = (char*)ip_octet_strs;
   unsigned int pos = 0;
   unsigned int seen_dots = 0;
 
